@@ -1,0 +1,67 @@
+# Exclude all directories by default
+*/
+
+# Dataset files
+*.csv
+*.tsv
+*.json
+*.jsonl
+*.xlsx
+*.xls
+
+# Private configuration files
+*.env
+*.config
+config.py
+secrets.yaml
+credentials.json
+
+# Model checkpoints and weights
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.h5
+*.model
+*.weights
+
+# Arrow files
+*.arrow
+*.parquet
+*.feather
+
+# Log files
+*.log
+*.out
+nohup.out
+slurm-*.out
+*.err
+events.out.tfevents.*
+*.wandb
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System specific files
+.DS_Store
+Thumbs.db
+
+# But allow these directories to be tracked (add ! to whitelist)
+!.github/
+!scripts/
+!src/
+!tests/
+!docs/ 
