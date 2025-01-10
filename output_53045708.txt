@@ -1,0 +1,2 @@
+Error: MODEL and METHOD must be set
+Example usage: MODEL=Qwen/QwQ-32B-Preview METHOD=simple sbatch run_qwq_eval.sh
