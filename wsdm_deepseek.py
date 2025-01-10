@@ -14,7 +14,7 @@ results_buffer = defaultdict(dict)
 moderation_failed_ids = set()  # Track IDs that fail moderation
 buffer_size = 500
 API_KEY = os.getenv("OPENAI_API_KEY")
-REPO_ID = "ruggsea/wsdm2024-deepseek-cot-dataset"
+REPO_ID = "ruggsea/wsdm2024-deepseek-cot"
 MAX_RETRIES = 3
 
 def clean_json_string(s):
