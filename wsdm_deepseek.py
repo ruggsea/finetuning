@@ -162,7 +162,8 @@ async def upload_to_hub(result_df):
         repo = Repository(
             local_dir=tmp_dir,
             clone_from=REPO_ID,
-            use_auth_token=True
+            use_auth_token=True,
+            repo_type="dataset"
         )
         
         # Create README content
