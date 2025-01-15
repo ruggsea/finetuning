@@ -135,7 +135,7 @@ class GenerationCallback(TrainerCallback):
 
 def main():
     # Model and training parameters
-    BASE_MODEL = "Qwen/Qwen1.5-72B-Chat"
+    BASE_MODEL = "Qwen/Qwen2.5-72B-Instruct"
     OUTPUT_DIR = "qwen-72b-cot-wsdm"
     HUB_MODEL_ID = "ruggsea/Qwen72B-CoT-WSDM"
 
@@ -189,7 +189,11 @@ def main():
                 "text": tokenizer.apply_chat_template(
                     messages,
                     tokenize=False
-                )
+                ),
+                "n_tokens": len(tokenizer.encode(tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False
+                )))
             }
         
         # Process dataset
@@ -198,6 +202,10 @@ def main():
             remove_columns=dataset.column_names,
             num_proc=8
         )
+        
+        # filter out too long sequences
+        # processed_dataset = processed_dataset.filter(lambda x: x["n_tokens"] <= 4096)
+        
         
         # Split into train/eval
         split_dataset = processed_dataset.train_test_split(test_size=0.05)
@@ -215,6 +223,7 @@ def main():
             device_map="auto",
             torch_dtype=torch.bfloat16,
             trust_remote_code=True,
+            attn_implementation="flash_attention_2"
         )
 
         # Prepare model for training
@@ -236,13 +245,13 @@ def main():
         training_args = SFTConfig(
             output_dir=checkpoint_dir,
             num_train_epochs=3,
-            per_device_train_batch_size=1,
-            gradient_accumulation_steps=32,
+            per_device_train_batch_size=10,
+            gradient_accumulation_steps=3,
             gradient_checkpointing=True,
             optim="paged_adamw_8bit",
             learning_rate=2e-4,
             bf16=True,
-            logging_steps=10,
+            logging_steps=1,
             logging_dir=os.path.join(cache_dir, "logs"),
             save_strategy="epoch",
             eval_strategy="steps",
@@ -252,9 +261,8 @@ def main():
             run_name=f"qwen-72b-cot-{datetime.now().strftime('%Y-%m-%d-%H-%M')}",
             warmup_ratio=0.03,
             group_by_length=True,
-            push_to_hub=False,  # We'll handle this manually after merging
+            push_to_hub=False,
             hub_model_id=HUB_MODEL_ID,
-            max_seq_length=4096,
             packing=False,
             weight_decay=0.01,
             max_grad_norm=0.3,
@@ -269,16 +277,29 @@ def main():
             eval_dataset=eval_dataset,
             args=training_args,
             peft_config=peft_config,
-            data_collator=DataCollatorForCompletionOnlyLM("<|im_start|>assistant\n", tokenizer=tokenizer),
         )
         
-        generation_callback = GenerationCallback(trainer, tokenizer, steps=300)
+        generation_callback = GenerationCallback(trainer, tokenizer, steps=3000)
         trainer.add_callback(generation_callback)
 
         # Train
         print("Starting training...")
         model.config.use_cache = False
-        trainer.train()
+        
+        # Check for existing checkpoints
+        if os.path.exists(checkpoint_dir):
+            checkpoint_folders = [f for f in os.listdir(checkpoint_dir) if f.startswith('checkpoint-')]
+            if checkpoint_folders:
+                latest_checkpoint = max(checkpoint_folders, key=lambda x: int(x.split('-')[1]))
+                latest_checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
+                print(f"Resuming from checkpoint: {latest_checkpoint_path}")
+                trainer.train(resume_from_checkpoint=latest_checkpoint_path)
+            else:
+                print("No checkpoints found, starting fresh training")
+                trainer.train()
+        else:
+            print("No checkpoint directory found, starting fresh training")
+            trainer.train()
         
         # Save the adapter weights
         print("Saving adapter weights...")
